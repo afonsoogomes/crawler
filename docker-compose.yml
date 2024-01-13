@@ -1,0 +1,41 @@
+version: '3.1'
+
+networks:
+  crawler_network:
+    driver: bridge
+
+services:
+  crawler_postgres:
+    image: postgres
+    container_name: crawler_postgres
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: crawler
+    volumes:
+      - ./postgres-data-volume:/var/lib/postgresql
+    networks:
+      - crawler_network
+
+  crawler_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - crawler_postgres
+    cap_add:
+      - SYS_ADMIN
+    container_name: crawler_app
+    tty: true
+    environment:
+      NODE_ENV: production
+      DB_NAME: crawler
+      DB_USER: dev
+      DB_PASS: dev
+      DB_HOST: crawler_postgres
+      DB_PORT: 5432
+    networks:
+      - crawler_network
