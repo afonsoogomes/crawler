@@ -325,10 +325,11 @@ export default class Crawler {
 
       transaction.commit()
     } catch (error) {
-      // Aqui pode ser integrado com alguma plataforma de monitoramento como datadog, sentry, newrelic...
+      // Aqui pode ser disparado notificações, email, sms e até integrado com algumas plataformas de monitoramento
+      // como por exemplo: datadog, sentry, new relic...
       transaction.rollback()
       this.browser?.close()
-      console.log('Erro ao buscar planos', error)
+      console.log(error)
     }
   }
 }
