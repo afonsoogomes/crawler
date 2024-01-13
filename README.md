@@ -55,4 +55,5 @@ Também é possível realizar o deploy em clouds utilizando o Dockerfile, alguns
 
 ### 9. Notas Adicionais
 - Também é possível executar o script no ambiente de desenvolvimento, para isso é necessário criar um arquivo .env na raiz do projeto e definir as seguintes variáveis para informar o banco de dados: `DB_NAME`, `DB_USER`, `DB_PASS`, `DB_HOST` e `DB_PORT`.
-- Ao executar no ambiente de desenvolvimento, o navegador será aberto, exibindo todo o processo de web scraping
+- Agora basta executar o comando `yarn dev` ou `npn run dev`
+- Ao executar o script no ambiente de desenvolvimento, o navegador será aberto, exibindo todo o processo de web scraping
