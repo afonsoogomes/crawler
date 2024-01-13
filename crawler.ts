@@ -31,20 +31,26 @@ export default class Crawler {
   private mainPage: Page | undefined
 
   /**
+   * Instância da página do plano.
+   * @type {Page | undefined}
+   */
+  private planPage: Page | undefined
+
+  /**
    * Função para abrir o navegador e retornar a página atual.
    * @returns {Promise<void>}
    */
   private openBrowser = async (): Promise<void> => {
     try {
       this.running = true
-  
+
       this.browser = await puppeteer.launch({
         executablePath: await locateChrome() as string,
         headless: process.env.NODE_ENV === 'production' ? 'new' : false,
         ignoreDefaultArgs: ['--disable-extensions'],
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-features=site-per-process']
       })
-  
+
       this.mainPage = await this.browser.newPage()
     } catch (error: any) {
       error.message = 'Erro ao abrir navegador'
@@ -75,14 +81,14 @@ export default class Crawler {
   private getThIndex = async (tableElement: ElementHandle | null, columnName: string): Promise<number | null> => {
     try {
       const thElements = await tableElement?.$$('table thead tr th') ?? []
-  
+
       for await (const [index, th] of thElements.entries()) {
         const thText = await th.evaluate(element => element.textContent.trim())
         if (thText === columnName) {
           return index + 1
         }
       }
-  
+
       return null
     } catch (error: any) {
       error.message = 'Erro ao pegar índice da tag TH'
@@ -100,11 +106,11 @@ export default class Crawler {
   private getTableData = async (tableElement: ElementHandle | null, rowIndex: number, columnName: string): Promise<string | null> => {
     try {
       const columnIndex = await this.getThIndex(tableElement, columnName)
-  
+
       if (!columnIndex) {
         return null
       }
-  
+
       const column = await tableElement?.$(`tbody tr:nth-child(${rowIndex}) td:nth-child(${columnIndex})`)
       const textContent = await column?.evaluate(a => a.textContent)
       return textContent ?? null
@@ -166,7 +172,7 @@ export default class Crawler {
     try {
       const table = await this.mainPage?.$('#result-pesquisa table') ?? null
       const rows = await this.mainPage?.$$('#result-pesquisa table tbody tr') ?? []
-  
+
       for await (const [index, row] of rows.entries()) {
         const linkTag = await row?.$('td:last-of-type a')
         const planPageUrl = await linkTag?.evaluate(element => element.getAttribute('href'))
@@ -174,44 +180,49 @@ export default class Crawler {
         const status = await this.getTableData(table, index + 1, 'Status')
         const name = await this.getTableData(table, index + 1, 'Identificação')
         const estimatedBudget = await this.getTableData(table, index + 1, 'Valor do Orçamento estimado para o Exercício')
-  
-        const planPage = await this.browser?.newPage()
-        await planPage?.goto(`${this.baseUrl}${planPageUrl}`)
-        await planPage?.waitForNetworkIdle()
-  
+
+        this.planPage = await this.browser?.newPage()
+        await this.planPage?.goto(`${this.baseUrl}${planPageUrl}`)
+        await this.planPage?.waitForNetworkIdle()
+
         const where = {
           name
         }
-  
+
         const values = {
           year: Number(year),
           status: status?.replace(/\n/g, ''),
           estimated_budget: Number(estimatedBudget?.replace('R$ ', '').replace(/\./g, '').replace(',', '.'))
         }
-  
+
         const [plan, created] = await PlanModel.findOrCreate({ where, defaults: values })
-  
+
         if (!created) {
           await PlanModel.update(values, { where })
         }
-  
-        const element = await planPage?.$('xpath///span[text()="Detalhamento do Plano"]')
+
+        const element = await this.planPage?.$('xpath///span[text()="Detalhamento do Plano"]')
         if (!element) {
           return
         }
-  
+
         const list = await element.$('xpath/.//following-sibling::ol')
         if (!list) {
           return
         }
-  
+
         const listItems = await list.$$(':scope > li')
         for await (const listItem of listItems) {
           const category = await this.fetchCategory(listItem)
           await this.crawItems(listItem, plan, category)
         }
-  
-        await planPage?.close()
+
+        await this.planPage?.close()
+        await this.mainPage?.bringToFront()
+
+        const session = await this.mainPage?.target().createCDPSession();
+        await session?.send('Page.enable');
+        await session?.send('Page.setWebLifecycleState', {state: 'active'});
       }
     } catch (error: any) {
       error.message = 'Erro ao coletar dados do plano'
@@ -228,18 +239,18 @@ export default class Crawler {
   private fetchCategory = async (element: ElementHandle): Promise<CategoryDataType | null> => {
     try {
       const hasCategory = await element.evaluate(a => !a.classList.contains('text-danger'))
-  
+
       if (!hasCategory) {
         return null
       }
-  
+
       const categoryLabelElement = await element.$('.list-sticky-item-label > span:first-of-type')
       const categoryName = await categoryLabelElement?.evaluate(a => a.textContent)
-  
+
       const [category] = await CategoryModel.findOrCreate({
         where: { name: categoryName }
       })
-  
+
       return category
     } catch (error: any) {
       error.message = 'Erro ao buscar categoria'
@@ -258,7 +269,7 @@ export default class Crawler {
     try {
       const rows = await element?.$$('table tbody tr') ?? []
       const table = await element?.$('table') ?? null
-  
+
       for await (const [index] of rows.entries()) {
         const uasg = await this.getTableData(table, index + 1, 'UASG')
         const itemNumber = await this.getTableData(table, index + 1, 'Nº Item')
@@ -269,7 +280,7 @@ export default class Crawler {
         const estimatedTotalValue = await this.getTableData(table, index + 1, 'Valor total estimado (R$)')
         const priorityLevel = await this.getTableData(table, index + 1, 'Grau de prioridade')
         const desiredDate = await this.getTableData(table, index + 1, 'Data desejada')
-  
+
         const where = {
           plan_id: plan.id,
           category_id: category?.id ?? null,
@@ -277,7 +288,7 @@ export default class Crawler {
           item_number: Number(itemNumber?.replace(/\D/, '')) || null,
           item_code: Number(itemCode?.replace(/\D/, '')) || null,
         }
-  
+
         const values = {
           description: description as string,
           quantity: Number(quantity?.replace(/\D/, '')),
@@ -286,20 +297,26 @@ export default class Crawler {
           priority_level: priorityLevel as string,
           desired_date: moment(desiredDate, 'DD/MM/YYYY').toDate()
         }
-  
+
         const { 1: created } = await PlanItemModel.findOrCreate({ where, defaults: values })
-  
+
         if (!created) {
           await PlanItemModel.update(values, { where })
         }
       }
-  
+
       const nextPageElement = await element?.$('.paginacao ul li.PagedList-skipToNext')
       const isNextPageDisabled = !nextPageElement || await nextPageElement?.evaluate(a => a.classList.contains('disabled'))
-  
+
       if (!isNextPageDisabled) {
         await nextPageElement.click()
-        await this.mainPage?.waitForNetworkIdle()
+
+        await this.planPage?.bringToFront()
+        const session = await this.planPage?.target().createCDPSession();
+        await session?.send('Page.enable');
+        await session?.send('Page.setWebLifecycleState', {state: 'active'});
+
+        await this.planPage?.waitForNetworkIdle()
         await this.crawItems(element, plan, category)
       }
     } catch (error: any) {
@@ -316,6 +333,8 @@ export default class Crawler {
     const transaction = await database.transaction()
 
     try {
+      console.log('Crawler iniciado')
+
       await this.openBrowser()
       await this.goToMainPage()
       await this.searchOrganization()
@@ -324,6 +343,7 @@ export default class Crawler {
       await this.closeBrowser()
 
       transaction.commit()
+      console.log('Crawler finalizado')
     } catch (error) {
       // Aqui pode ser disparado notificações, email, sms e até integrado com algumas plataformas de monitoramento
       // como por exemplo: datadog, sentry, new relic...
