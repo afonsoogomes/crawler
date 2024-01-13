@@ -16,6 +16,7 @@ Este é um projeto desenvolvido como parte do desafio para uma vaga de desenvolv
 - Configuração do Banco de Dados
   - O Docker Compose sobe automaticamente um contêiner do PostgreSQL
   - As configurações de conexão estão fixas no arquivo docker-compose.yml, porém pode ser utilizado um arquivo `.env`
+  - Caso precise acessar o banco de dados, as configurações são as seguintes: Conexão: Postgres, Host: localhost, Usuário: dev, Senha: dev, Porta: 5432
 
 ### 3. Execução do Crawler
 - Instruções para Execução
