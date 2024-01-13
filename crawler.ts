@@ -47,7 +47,7 @@ export default class Crawler {
   
       this.mainPage = await this.browser.newPage()
     } catch (error: any) {
-      error.message = `Erro ao abrir navegador - ${error.message}`
+      error.message = 'Erro ao abrir navegador'
       throw error
     }
   }
@@ -61,7 +61,7 @@ export default class Crawler {
       this.browser?.close()
       this.running = false
     } catch (error: any) {
-      error.message = `Erro ao fechar navegador - ${error.message}`
+      error.message = 'Erro ao fechar navegador'
       throw error
     }
   }
@@ -85,7 +85,7 @@ export default class Crawler {
   
       return null
     } catch (error: any) {
-      error.message = `Erro ao pegar índice da tag TH - ${error.message}`
+      error.message = 'Erro ao pegar índice da tag TH'
       throw error
     }
   }
@@ -109,7 +109,7 @@ export default class Crawler {
       const textContent = await column?.evaluate(a => a.textContent)
       return textContent ?? null
     } catch (error: any) {
-      error.message = `Erro ao pegar dados da tag TD - ${error.message}`
+      error.message = 'Erro ao pegar dados da tag TD'
       throw error
     }
   }
@@ -123,7 +123,7 @@ export default class Crawler {
       await this.mainPage?.goto(`${this.baseUrl}/Transparencia`)
       await this.mainPage?.waitForNetworkIdle()
     } catch (error: any) {
-      error.message = `Erro ao navegar para página principal - ${error.message}`
+      error.message = 'Erro ao navegar para página principal'
       throw error
     }
   }
@@ -138,7 +138,7 @@ export default class Crawler {
       await this.mainPage?.keyboard.press('Enter')
       await this.mainPage?.waitForSelector('#result-pesquisa table')
     } catch (error: any) {
-      error.message = `Erro ao buscar organização - ${error.message}`
+      error.message = 'Erro ao buscar organização'
       throw error
     }
   }
@@ -153,7 +153,7 @@ export default class Crawler {
       await anchorTag?.click()
       await this.mainPage?.waitForNavigation()
     } catch (error: any) {
-      error.message = `Erro ao navegar para página da organização - ${error.message}`
+      error.message = 'Erro ao navegar para página da organização'
       throw error
     }
   }
@@ -214,7 +214,7 @@ export default class Crawler {
         await planPage?.close()
       }
     } catch (error: any) {
-      error.message = `Erro ao coletar dados do plano - ${error.message}`
+      error.message = 'Erro ao coletar dados do plano'
       throw error
     }
   }
@@ -242,7 +242,7 @@ export default class Crawler {
   
       return category
     } catch (error: any) {
-      error.message = `Erro ao buscar categoria - ${error.message}`
+      error.message = 'Erro ao buscar categoria'
       throw error
     }
   }
@@ -303,7 +303,7 @@ export default class Crawler {
         await this.crawItems(element, plan, category)
       }
     } catch (error: any) {
-      error.message = `Erro ao coletar dados dos itens do plano - ${error.message}`
+      error.message = 'Erro ao coletar dados dos itens do plano'
       throw error
     }
   }
@@ -327,6 +327,7 @@ export default class Crawler {
     } catch (error) {
       // Aqui pode ser integrado com alguma plataforma de monitoramento como datadog, sentry, newrelic...
       transaction.rollback()
+      this.browser?.close()
       console.log('Erro ao buscar planos', error)
     }
   }
